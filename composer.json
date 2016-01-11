@@ -13,7 +13,7 @@
     "require": {
         "vlucas/phpdotenv": "^2.2",
         "symfony/filesystem": "^3.0",
-        "sp4ceb4r/php-process": "dev-master#b42a69df068247956096c99a1b5a725bdfca00db"
+        "sp4ceb4r/php-process": "dev-master"
     },
     "require-dev": {
         "phpunit/phpunit": "^5.1"
