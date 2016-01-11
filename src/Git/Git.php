@@ -2,6 +2,7 @@
 
 namespace Git;
 
+use Closure;
 use Process\Command;
 use Process\Process;
 use Process\ProcessException;
@@ -43,6 +44,12 @@ class Git
      */
     protected $booted = false;
 
+    /**
+     * Set the configuration option globally (for executing user).
+     *
+     * @param $key
+     * @param $value
+     */
     public static function configureGlobal($key, $value)
     {
     }
@@ -69,6 +76,18 @@ class Git
     }
 
     /**
+     * Validate the git binary exists and is executable.
+     *
+     * @param $binary
+     */
+    protected static function validateBinary($binary)
+    {
+        if (!is_file($binary) || !is_executable($binary)) {
+            throw new LogicException('Invalid configuration. Git improperly configured.');
+        }
+    }
+
+    /**
      * Git constructor.
      *
      * @param $project_dir
@@ -79,7 +98,7 @@ class Git
         if (is_null($binary)) {
             $binary = static::$default;
         }
-        $this->validateBinary($binary);
+        static::validateBinary($binary);
 
         $this->binary = $binary;
         $this->project_dir = $project_dir;
@@ -92,10 +111,59 @@ class Git
      * @param array $args
      * @param array $options
      * @param array $paths
+     * @param Closure $onSuccess
+     * @param Closure $onError
      * @return Process
      * @throws GitException
      */
-    public function exec($command, array $args = [], array $options = [], array $paths = [])
+    public function exec($command, array $args = [], array $options = [], array $paths = [], Closure $onSuccess = null, Closure $onError = null)
+    {
+        $process = $this->buildProcess($command, $args, $options, $paths, $onSuccess, $onError);
+
+        try {
+            $process->run();
+
+            return $process;
+        } catch (ProcessException $ex) {
+            $code = $process->getSignal();
+            throw new GitException("$process failed.", $code ?: 0, $ex);
+        }
+    }
+
+    public function execNonBlocking($command, array $args = [], array $options = [], array $paths = [], Closure $onSuccess = null, Closure $onError = null)
+    {
+        $process = $this->buildProcess($command, $args, $options, $paths, $onSuccess, $onError);
+
+        try {
+            $process->run(false);
+
+            return $process;
+        } catch (ProcessException $ex) {
+            $code = $process->getSignal();
+            throw new GitException("$process failed.", $code ?: 0, $ex);
+        }
+    }
+
+    /**
+     * Get the project directory.
+     *
+     * @return string
+     */
+    public function getProjectDirectory()
+    {
+        return $this->project_dir;
+    }
+
+    /**
+     * @param $command
+     * @param array $args
+     * @param array $options
+     * @param array $paths
+     * @param Closure $onSuccess
+     * @param Closure $onError
+     * @return Process
+     */
+    private function buildProcess($command, array $args = [], array $options = [], array $paths = [], Closure $onSuccess = null, Closure $onError = null)
     {
         if (in_array($command, static::$subcommands)) {
             list($command, $subcommand) = explode('-', $command);
@@ -104,29 +172,15 @@ class Git
 
         array_unshift($args, $command);
 
+        if (!empty($paths)) {
+            $options['--'] = $paths;
+        }
+
         $cmd = Command::command('git')->withArgs($args)
                                       ->withOptions($options);
 
-        $process = new Process($cmd, $this->project_dir);
-
-        try {
-            $process->run();
-
-            return $process;
-        } catch (ProcessException $ex) {
-            throw new GitException("Error executing [$cmd].", $process, $ex);
-        }
-    }
-
-    protected function validateBinary($binary)
-    {
-        if (!is_file($binary) || !is_executable($binary)) {
-            throw new LogicException('Invalid configuration. Git improperly configured.');
-        }
-    }
-
-    public function getDir()
-    {
-        return $this->project_dir;
+        return Process::process($cmd)->usingCwd($this->project_dir)
+                                     ->onError($onError)
+                                     ->onSuccess($onSuccess);
     }
 }

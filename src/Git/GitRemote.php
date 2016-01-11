@@ -37,6 +37,8 @@ class GitRemote
     }
 
     /**
+     * Get remote name.
+     *
      * @return string
      */
     public function getName()
@@ -45,6 +47,8 @@ class GitRemote
     }
 
     /**
+     * Get remote url.
+     *
      * @return string
      */
     public function getUrl()

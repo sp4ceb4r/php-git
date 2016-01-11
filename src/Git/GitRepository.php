@@ -3,6 +3,7 @@
 namespace Git;
 
 use InvalidArgumentException;
+use Process\Process;
 use Symfony\Component\Filesystem\Filesystem;
 
 
@@ -22,7 +23,13 @@ class GitRepository
     protected $git;
 
     /**
+     * @var bool
+     */
+    protected $initialized = false;
+
+    /**
      * Initialize a new git repository.
+     *
      * @param string $project_dir
      * @param string $remote_url
      * @return GitRepository
@@ -46,6 +53,8 @@ class GitRepository
                 'url' => $remote_url,
                 'name' => 'origin',
             ];
+
+            $repo->initialized = true;
         }
 
         return $repo;
@@ -56,9 +65,12 @@ class GitRepository
      *
      * @param string $project_dir
      * @param string $remote_url
-     * @return GitRepository
+     * @param null $repo
+     * @param bool $background
+     * @return GitRepository|Process
+     * @throws GitException
      */
-    public static function copy($project_dir, $remote_url)
+    public static function copy($project_dir, $remote_url, &$repo = null, $background = false)
     {
         $fs = new Filesystem();
         $fs->mkdir($project_dir);
@@ -66,12 +78,30 @@ class GitRepository
         $git = new Git($project_dir);
         $repo = new GitRepository($git);
 
-        $git->exec('clone', [$remote_url, $project_dir]);
+        $args = [
+            $remote_url,
+            $project_dir,
+        ];
 
-        $repo->processGitConfig();
-        $repo->setUpstream();
+        if ($background) {
+            $onSuccess = function() use (&$repo) {
+                $repo->processGitConfig();
+                $repo->setUpstream();
 
-        return $repo;
+                $repo->initialized = true;
+            };
+
+            return $git->execNonBlocking('clone', $args, [], [], $onSuccess);
+        } else {
+            $git->exec('clone', $args);
+
+            $repo->processGitConfig();
+            $repo->setUpstream();
+
+            $repo->initialized = true;
+
+            return $repo;
+        }
     }
 
     /**
@@ -91,20 +121,27 @@ class GitRepository
             throw new InvalidArgumentException("[$project_dir] is not a git repo.");
         }
 
-        return new GitRepository(new Git($project_dir));
+        return new GitRepository(new Git($project_dir), true);
     }
 
     /**
      * GitRepository constructor.
      *
      * @param Git $git
+     * @param bool $initialized
      */
-    public function __construct(Git $git)
+    public function __construct(Git $git, $initialized = false)
     {
         $this->git = $git;
         $this->processGitConfig();
     }
 
+    /**
+     * List available branches.
+     *
+     * @return array
+     * @throws GitException
+     */
     public function listBranches()
     {
         $process = $this->git->exec('branch');
@@ -117,6 +154,12 @@ class GitRepository
         return $branches;
     }
 
+    /**
+     * Get the current branch for the repository.
+     *
+     * @return string
+     * @throws GitException
+     */
     public function currentBranch()
     {
         $process = $this->git->exec('rev-parse', [], ['--abbrev-ref' => 'HEAD']);
@@ -124,6 +167,15 @@ class GitRepository
         return $process->readStdOut();
     }
 
+    /**
+     * Delete a branch locally and optionally remotely.
+     *
+     * @param $branch
+     * @param bool $force
+     * @param bool $remote
+     * @return string
+     * @throws GitException
+     */
     public function deleteBranch($branch, $force = true, $remote = false)
     {
         $key = '-D';
@@ -132,38 +184,61 @@ class GitRepository
         }
 
         $process = $this->git->exec('branch', [], [$key => $branch]);
-        $stdout = $process->readStdOut();
 
         if ($remote) {
             unset($process);
             $process = $this->git->exec('push', ['origin', ":$branch"]);
-
-            $stdout .= $process->readStdOut();
         }
-
-        return $stdout;
     }
 
+    /**
+     * Set configuration option locally.
+     *
+     * @param $key
+     * @param $value
+     * @return void
+     */
     public function configure($key, $value)
     {
     }
 
-    public function clean()
-    {
-    }
-
+    /**
+     * Checkout the desired point in time.
+     *
+     * @param string $refspec
+     * @param bool $createBranch
+     * @return void
+     */
     public function checkout($refspec, $createBranch = false)
     {
     }
 
+    /**
+     * Fetch upstream changes without applying.
+     *
+     * @return void
+     */
     public function fetch()
     {
     }
 
+    /**
+     * Pull (and apply) upstream changes.
+     *
+     * @return void
+     */
     public function pull()
     {
     }
 
+    /**
+     * Set the branch tracking information.
+     *
+     * @param string $remote
+     * @param string $branch
+     * @return void
+     * @throws GitException
+     */
     public function setUpstream($remote = 'origin', $branch = null)
     {
         $args = [$remote];
@@ -176,6 +251,13 @@ class GitRepository
         $this->git->exec('push', $args, $options);
     }
 
+    /**
+     * Stash local changes.
+     *
+     * @return void
+     * @throws GitConfigException
+     * @throws GitException
+     */
     public function stash()
     {
         if (!$this->isUserConfigured()) {
@@ -185,11 +267,24 @@ class GitRepository
         $this->git->exec('stash');
     }
 
+    /**
+     * Pop stashed changes.
+     *
+     * @return void
+     * @throws GitException
+     */
     public function pop()
     {
         $this->git->exec('stash-pop');
     }
 
+    /**
+     * List existing remotes.
+     *
+     * @param bool $verbose
+     * @return void
+     * @throws GitException
+     */
     public function listRemotes($verbose = false)
     {
         $options = [];
@@ -200,25 +295,46 @@ class GitRepository
         $this->git->exec('remote', [], $options);
     }
 
+    /**
+     * Add new remote.
+     *
+     * @param $name
+     * @param $url
+     * @return void
+     * @throws GitException
+     */
     public function addRemote($name, $url)
     {
         $this->git->exec('remote-add', [$name, $url]);
     }
 
     /**
+     * Delete the remote.
+     *
      * @param $name
+     * @return void
      */
     public function removeRemote($name)
     {
         $this->git->exec('remote-remove', [$name]);
     }
 
+    /**
+     * Rename the remote.
+     *
+     * @param $old
+     * @param $new
+     * @return void
+     * @throws GitException
+     */
     public function renameRemote($old, $new)
     {
         $this->git->exec('remote-rename', [$old, $new]);
     }
 
     /**
+     * Check that a git user has been configured.
+     *
      * @return bool
      */
     protected function isUserConfigured()
@@ -226,12 +342,19 @@ class GitRepository
         return isset($this->user);
     }
 
+    /**
+     * Process existing git configuration files. Files are read
+     * from the system level to the local level, overwriting options
+     * as we go.
+     *
+     * @return void
+     */
     protected function processGitConfig()
     {
         $configs = [
             "/etc/gitconfig",
             realpath("~/.gitconfig"),
-            "{$this->git->getDir()}/.git/config",
+            "{$this->git->getProjectDirectory()}/.git/config",
         ];
 
         foreach ($configs as $file) {

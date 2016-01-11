@@ -4,8 +4,8 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "4a6295272cffdb9a568282dc88d94e79",
-    "content-hash": "745bc0b454f0e671deff5550069abe4d",
+    "hash": "ec900c9d8f6acc754f9a895aaf981756",
+    "content-hash": "91ee9f2166ed39d2984bdefbff52b0a1",
     "packages": [
         {
             "name": "sp4ceb4r/php-process",
@@ -13,7 +13,7 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/sp4ceb4r/php-process",
-                "reference": "b42a69df068247956096c99a1b5a725bdfca00db"
+                "reference": "4e15843d3c0b62db30a424b03eb7e9b81c71b496"
             },
             "require-dev": {
                 "phpunit/phpunit": "^5.1"
@@ -26,11 +26,11 @@
             },
             "autoload-dev": {
                 "classmap": [
-                    "test/"
+                    "tests/"
                 ]
             },
             "description": "PHP shell command processing.",
-            "time": "2016-01-11 04:14:49"
+            "time": "2016-01-11 06:28:58"
         },
         {
             "name": "symfony/filesystem",
