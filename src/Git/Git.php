@@ -3,9 +3,9 @@
 namespace Git;
 
 use Closure;
-use Process\Command;
-use Process\Process;
-use Process\ProcessException;
+use Shell\Commands\Command;
+use Shell\Process;
+use Shell\Exceptions\ProcessException;
 use LogicException;
 
 

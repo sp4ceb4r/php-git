@@ -3,7 +3,7 @@
 namespace Git;
 
 use InvalidArgumentException;
-use Process\Process;
+use Shell\Process;
 use Symfony\Component\Filesystem\Filesystem;
 
 
@@ -84,7 +84,7 @@ class GitRepository
         ];
 
         if ($background) {
-            $onSuccess = function() use (&$repo) {
+            $onSuccess = function () use (&$repo) {
                 $repo->processGitConfig();
                 $repo->setUpstream();
 
@@ -144,14 +144,15 @@ class GitRepository
      */
     public function listBranches()
     {
+        $trim = function ($line) {
+            return trim(trim($line, '*'));
+        };
+
         $process = $this->git->exec('branch');
 
-        $branches = [];
-        foreach (explode("\n", $process->readStdOut()) as $line) {
-            array_push($branches, trim(trim($line, '*')));
-        }
-
-        return $branches;
+        return $process->read(function ($stdout, $sterr) use ($trim) {
+            return array_map($trim, explode("\n", $stdout));
+        });
     }
 
     /**
@@ -164,7 +165,9 @@ class GitRepository
     {
         $process = $this->git->exec('rev-parse', [], ['--abbrev-ref' => 'HEAD']);
 
-        return $process->readStdOut();
+        return $process->read(function ($stdout, $stderr) {
+            return trim($stdout);
+        });
     }
 
     /**

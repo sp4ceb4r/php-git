@@ -3,7 +3,6 @@
 namespace Git;
 
 use Exception;
-use Process\Process;
 
 
 /**

@@ -4,16 +4,16 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "ec900c9d8f6acc754f9a895aaf981756",
-    "content-hash": "91ee9f2166ed39d2984bdefbff52b0a1",
+    "hash": "899f9f09880ebb8cb7021d35a98ea84e",
+    "content-hash": "ffdcc2bc28ac2ab6a48d4e8fb47e96fc",
     "packages": [
         {
-            "name": "sp4ceb4r/php-process",
+            "name": "sp4ceb4r/shell-command",
             "version": "dev-master",
             "source": {
                 "type": "git",
-                "url": "https://github.com/sp4ceb4r/php-process",
-                "reference": "4e15843d3c0b62db30a424b03eb7e9b81c71b496"
+                "url": "https://github.com/sp4ceb4r/shell-command",
+                "reference": "8c08bfa7645eddf67e9d77854f8ca10082a7e287"
             },
             "require-dev": {
                 "phpunit/phpunit": "^5.1"
@@ -21,7 +21,7 @@
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "Process\\": "src/Process"
+                    "Shell\\": "src/Shell"
                 }
             },
             "autoload-dev": {
@@ -30,7 +30,7 @@
                 ]
             },
             "description": "PHP shell command processing.",
-            "time": "2016-01-11 06:28:58"
+            "time": "2016-01-12 23:39:53"
         },
         {
             "name": "symfony/filesystem",
@@ -341,16 +341,16 @@
         },
         {
             "name": "phpunit/php-code-coverage",
-            "version": "3.0.2",
+            "version": "3.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/php-code-coverage.git",
-                "reference": "f7bb5cddf4ffe113eeb737b05241adb947b43f9d"
+                "reference": "64d40a593fc31a8abf4ce3d200147ddf8ca64e52"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/php-code-coverage/zipball/f7bb5cddf4ffe113eeb737b05241adb947b43f9d",
-                "reference": "f7bb5cddf4ffe113eeb737b05241adb947b43f9d",
+                "url": "https://api.github.com/repos/sebastianbergmann/php-code-coverage/zipball/64d40a593fc31a8abf4ce3d200147ddf8ca64e52",
+                "reference": "64d40a593fc31a8abf4ce3d200147ddf8ca64e52",
                 "shasum": ""
             },
             "require": {
@@ -373,7 +373,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "3.0.x-dev"
+                    "dev-master": "3.1.x-dev"
                 }
             },
             "autoload": {
@@ -399,7 +399,7 @@
                 "testing",
                 "xunit"
             ],
-            "time": "2015-11-12 21:08:20"
+            "time": "2016-01-11 10:05:34"
         },
         {
             "name": "phpunit/php-file-iterator",
@@ -581,16 +581,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "5.1.3",
+            "version": "5.1.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "c047ff05d2279404af9a7e89e2a7151c32c88022"
+                "reference": "676c25c4ac563869572c878fdaf3db21587f5f3b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/c047ff05d2279404af9a7e89e2a7151c32c88022",
-                "reference": "c047ff05d2279404af9a7e89e2a7151c32c88022",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/676c25c4ac563869572c878fdaf3db21587f5f3b",
+                "reference": "676c25c4ac563869572c878fdaf3db21587f5f3b",
                 "shasum": ""
             },
             "require": {
@@ -651,7 +651,7 @@
                 "testing",
                 "xunit"
             ],
-            "time": "2015-12-10 07:54:54"
+            "time": "2016-01-11 10:11:10"
         },
         {
             "name": "phpunit/phpunit-mock-objects",
@@ -1175,7 +1175,7 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "sp4ceb4r/php-process": 20
+        "sp4ceb4r/shell-command": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,
