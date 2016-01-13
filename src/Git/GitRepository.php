@@ -3,7 +3,6 @@
 namespace Git;
 
 use InvalidArgumentException;
-use Shell\Output\DefaultOutputHandler;
 use Shell\Process;
 use Symfony\Component\Filesystem\Filesystem;
 
