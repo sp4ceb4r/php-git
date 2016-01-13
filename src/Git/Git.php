@@ -15,6 +15,27 @@ use LogicException;
 class Git
 {
     /**
+     * Global config ~/.gitconfig
+     *
+     * @var string
+     */
+    const GLOBAL_CONFIG = 'global';
+
+    /**
+     * Local config .git/config
+     *
+     * @var string
+     */
+    const LOCAL_CONFIG = 'local';
+
+    /**
+     * System config $(prefix)/etc/gitconfig
+     *
+     * @var string
+     */
+    const SYSTEM_CONFIG = 'system';
+
+    /**
      * @var string
      */
     protected static $default = '/usr/bin/git';

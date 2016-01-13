@@ -205,14 +205,24 @@ class GitRepository
     }
 
     /**
-     * Set configuration option locally.
+     * Set configuration option.
      *
      * @param $key
      * @param $value
+     * @param string $reach
      * @return void
      */
-    public function configure($key, $value)
+    public function configure($key, $value, $reach = 'local')
     {
+        $reach = strtolower($reach);
+        if (!in_array($reach, [Git::LOCAL_CONFIG, Git::GLOBAL_CONFIG, Git::SYSTEM_CONFIG])) {
+            throw new \LogicException("Invalid reach [$reach].");
+        }
+
+        $this->git->exec('config', [], [
+            '--'.$reach,
+            "--$key" => $value,
+        ]);
     }
 
     /**
