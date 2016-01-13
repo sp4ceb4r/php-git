@@ -176,11 +176,11 @@ class Git
             $options['--'] = $paths;
         }
 
-        $cmd = Command::command('git')->withArgs($args)
-                                      ->withOptions($options);
+        $cmd = Command::make('git')->withArgs($args)
+                                   ->withOptions($options);
 
-        return Process::process($cmd)->usingCwd($this->project_dir)
-                                     ->onError($onError)
-                                     ->onSuccess($onSuccess);
+        return Process::make($cmd)->usingCwd($this->project_dir)
+                                  ->onError($onError)
+                                  ->onSuccess($onSuccess);
     }
 }
