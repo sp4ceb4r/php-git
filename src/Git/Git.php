@@ -45,6 +45,11 @@ class Git
     protected $booted = false;
 
     /**
+     * @var \Shell\Output\ProcessOutputInterface
+     */
+    protected $output;
+
+    /**
      * Set the configuration option globally (for executing user).
      *
      * @param $key
@@ -105,6 +110,19 @@ class Git
     }
 
     /**
+     * @param \Shell\Output\ProcessOutputInterface
+     */
+    public function setOutputHandler($output)
+    {
+        $this->output = $output;
+    }
+
+    public function getOutputHandler()
+    {
+        return $this->output;
+    }
+
+    /**
      * Execute the command.
      *
      * @param $command
@@ -125,8 +143,10 @@ class Git
 
             return $process;
         } catch (ProcessException $ex) {
-            $code = $process->getSignal();
-            throw new GitException("$process failed.", $code ?: 0, $ex);
+            $code = $process->getExitCode() ?: $process->getSignal();
+            $msg = $this->formatError($process->getOutputHandler()->readStderrLines());
+
+            throw new GitException("[$command] failed. $msg", $code ?: 0, $ex);
         }
     }
 
@@ -135,12 +155,14 @@ class Git
         $process = $this->buildProcess($command, $args, $options, $paths, $onSuccess, $onError);
 
         try {
-            $process->run(false);
+            $process->runAsync();
 
             return $process;
         } catch (ProcessException $ex) {
-            $code = $process->getSignal();
-            throw new GitException("$process failed.", $code ?: 0, $ex);
+            $code = $process->getExitCode() ?: $process->getSignal();
+            $msg = $this->formatError($process->getOutputHandler()->readStderrLines());
+
+            throw new GitException("[$command] failed. $msg", $code ?: 0, $ex);
         }
     }
 
@@ -155,6 +177,31 @@ class Git
     }
 
     /**
+     * Formats the stderr.
+     *
+     * @param array $stderr
+     * @param string $listenFor
+     * @return string
+     */
+    protected function formatError(array $stderr = [], $listenFor = '/^fatal:/')
+    {
+        $msg = '';
+        $discard = true;
+        foreach ($stderr as $line) {
+            if (preg_match($listenFor, $line) === 1) {
+                $discard = false;
+                $line = preg_replace($listenFor, '', $line);
+            }
+
+            if (!$discard) {
+                $msg .= " $line";
+            }
+        }
+
+        return trim($msg);
+    }
+
+    /**
      * @param $command
      * @param array $args
      * @param array $options
@@ -163,7 +210,7 @@ class Git
      * @param Closure $onError
      * @return Process
      */
-    private function buildProcess($command, array $args = [], array $options = [], array $paths = [], Closure $onSuccess = null, Closure $onError = null)
+    protected final function buildProcess($command, array $args = [], array $options = [], array $paths = [], Closure $onSuccess = null, Closure $onError = null)
     {
         if (in_array($command, static::$subcommands)) {
             list($command, $subcommand) = explode('-', $command);
@@ -179,8 +226,8 @@ class Git
         $cmd = Command::make('git')->withArgs($args)
                                    ->withOptions($options);
 
-        return Process::make($cmd)->usingCwd($this->project_dir)
-                                  ->onError($onError)
-                                  ->onSuccess($onSuccess);
+        return Process::make($cmd, $this->output)->usingCwd($this->project_dir)
+                                                 ->onError($onError)
+                                                 ->onSuccess($onSuccess);
     }
 }

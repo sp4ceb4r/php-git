@@ -3,6 +3,7 @@
 namespace Git;
 
 use InvalidArgumentException;
+use Shell\Output\DefaultOutputHandler;
 use Shell\Process;
 use Symfony\Component\Filesystem\Filesystem;
 
@@ -23,6 +24,11 @@ class GitRepository
     protected $git;
 
     /**
+     * @var \Shell\Output\ProcessOutputInterface
+     */
+    protected $output;
+
+    /**
      * @var bool
      */
     protected $initialized = false;
@@ -32,10 +38,11 @@ class GitRepository
      *
      * @param string $project_dir
      * @param string $remote_url
+     * @param \Shell\Output\ProcessOutputInterface $output
      * @return GitRepository
      * @throws GitException
      */
-    public static function init($project_dir, $remote_url = null)
+    public static function init($project_dir, $remote_url = null, $output = null)
     {
         $fs = new Filesystem();
         $fs->mkdir($project_dir);
@@ -43,7 +50,7 @@ class GitRepository
         $git = new Git($project_dir);
         $git->exec('init');
 
-        $repo = new GitRepository($git);
+        $repo = new GitRepository($git, $output);
 
         if (!is_null($remote_url)) {
             $repo->addRemote('origin', $remote_url);
@@ -66,17 +73,18 @@ class GitRepository
      * @param string $project_dir
      * @param string $remote_url
      * @param null $repo
+     * @param \Shell\Output\ProcessOutputInterface $output
      * @param bool $background
      * @return GitRepository|Process
      * @throws GitException
      */
-    public static function copy($project_dir, $remote_url, &$repo = null, $background = false)
+    public static function copy($project_dir, $remote_url, &$repo = null, $output = null, $background = false)
     {
         $fs = new Filesystem();
         $fs->mkdir($project_dir);
 
         $git = new Git($project_dir);
-        $repo = new GitRepository($git);
+        $repo = new GitRepository($git, $output);
 
         $args = [
             $remote_url,
@@ -93,7 +101,7 @@ class GitRepository
 
             return $git->execNonBlocking('clone', $args, [], [], $onSuccess);
         } else {
-            $git->exec('clone', $args);
+            $git->exec('clone', $args, ['--verbose' => true]);
 
             $repo->processGitConfig();
             $repo->setUpstream();
@@ -108,9 +116,10 @@ class GitRepository
      * Open existing repository.
      *
      * @param $project_dir
+     * @param \Shell\Output\ProcessOutputInterface $output
      * @return GitRepository
      */
-    public static function open($project_dir)
+    public static function open($project_dir, $output = null)
     {
         if (!is_dir($project_dir)) {
             throw new InvalidArgumentException("[$project_dir] not found.");
@@ -121,18 +130,24 @@ class GitRepository
             throw new InvalidArgumentException("[$project_dir] is not a git repo.");
         }
 
-        return new GitRepository(new Git($project_dir), true);
+        return new GitRepository(new Git($project_dir), $output);
     }
 
     /**
      * GitRepository constructor.
      *
      * @param Git $git
-     * @param bool $initialized
+     * @param \Shell\Output\ProcessOutputInterface $output
      */
-    public function __construct(Git $git, $initialized = false)
+    public function __construct(Git $git, $output = null)
     {
         $this->git = $git;
+
+        $output = is_null($output) ? $git->getOutputHandler() : $output;
+
+        $this->output = $output;
+        $this->git->setOutputHandler($output);
+
         $this->processGitConfig();
     }
 
@@ -148,11 +163,9 @@ class GitRepository
             return trim(trim($line, '*'));
         };
 
-        $process = $this->git->exec('branch');
+        $this->git->exec('branch');
 
-        return $process->read(function ($stdout, $sterr) use ($trim) {
-            return array_map($trim, explode("\n", $stdout));
-        });
+        return array_map($trim, $this->output->readStdoutLines());
     }
 
     /**
@@ -163,11 +176,9 @@ class GitRepository
      */
     public function currentBranch()
     {
-        $process = $this->git->exec('rev-parse', [], ['--abbrev-ref' => 'HEAD']);
+        $this->git->exec('rev-parse', [], ['--abbrev-ref' => 'HEAD']);
 
-        return $process->read(function ($stdout, $stderr) {
-            return trim($stdout);
-        });
+        return end($this->output->readStdoutLines());
     }
 
     /**
@@ -360,9 +371,13 @@ class GitRepository
             "{$this->git->getProjectDirectory()}/.git/config",
         ];
 
-        foreach ($configs as $file) {
+        foreach ($configs as $index => $file) {
             if (!is_file($file)) {
                 continue;
+            }
+
+            if ($index === 2) {
+                $this->initialized = true;
             }
 
             foreach (parse_ini_file($file, true) as $section => $values) {
