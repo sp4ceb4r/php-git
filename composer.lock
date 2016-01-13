@@ -4,21 +4,21 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "60b978df5db77b4fc50f056bd73fa515",
-    "content-hash": "a43426b2b12bfe5adff8a6d8872ead3a",
+    "hash": "df0c58a1f5437c14f6dbc5034f60d531",
+    "content-hash": "b02434098d3e0a31f2b7a40ea80dccfb",
     "packages": [
         {
             "name": "sp4ceb4r/shell-command",
-            "version": "v0.1.0",
+            "version": "v0.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sp4ceb4r/shell-command.git",
-                "reference": "5714e25abb54ba86e2032ca6f9cfd1497b40c14f"
+                "reference": "5ef6bab8e80cbb8abcd55b7afca8f50be4be3f7b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sp4ceb4r/shell-command/zipball/5714e25abb54ba86e2032ca6f9cfd1497b40c14f",
-                "reference": "5714e25abb54ba86e2032ca6f9cfd1497b40c14f",
+                "url": "https://api.github.com/repos/sp4ceb4r/shell-command/zipball/5ef6bab8e80cbb8abcd55b7afca8f50be4be3f7b",
+                "reference": "5ef6bab8e80cbb8abcd55b7afca8f50be4be3f7b",
                 "shasum": ""
             },
             "require": {
@@ -48,7 +48,7 @@
                 "process",
                 "shell"
             ],
-            "time": "2016-01-13 17:06:50"
+            "time": "2016-01-13 17:35:04"
         },
         {
             "name": "symfony/filesystem",
