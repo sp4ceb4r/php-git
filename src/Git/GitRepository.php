@@ -28,6 +28,11 @@ class GitRepository
     protected $output;
 
     /**
+     * @var string
+     */
+    protected $url;
+
+    /**
      * @var bool
      */
     protected $initialized = false;
@@ -35,18 +40,22 @@ class GitRepository
     /**
      * Initialize a new git repository.
      *
-     * @param string $project_dir
+     * @param string $path
      * @param string $remote_url
      * @param \Shell\Output\ProcessOutputInterface $output
      * @return GitRepository
      * @throws GitException
      */
-    public static function init($project_dir, $remote_url = null, $output = null)
+    public static function init($path, $remote_url = null, $output = null)
     {
         $fs = new Filesystem();
-        $fs->mkdir($project_dir);
+        if (!$fs->isAbsolutePath($path)) {
+            throw new InvalidArgumentException('Path must be absolute.');
+        }
 
-        $git = new Git($project_dir);
+        $fs->mkdir($path);
+
+        $git = new Git($path);
         $git->exec('init');
 
         $repo = new GitRepository($git, $output);
@@ -69,7 +78,7 @@ class GitRepository
     /**
      * Clone a repository (clone is a reserved keyword).
      *
-     * @param string $project_dir
+     * @param string $path
      * @param string $remote_url
      * @param null $repo
      * @param \Shell\Output\ProcessOutputInterface $output
@@ -77,17 +86,21 @@ class GitRepository
      * @return GitRepository|Process
      * @throws GitException
      */
-    public static function copy($project_dir, $remote_url, &$repo = null, $output = null, $background = false)
+    public static function copy($path, $remote_url, &$repo = null, $output = null, $background = false)
     {
         $fs = new Filesystem();
-        $fs->mkdir($project_dir);
+        if (!$fs->isAbsolutePath($path)) {
+            throw new InvalidArgumentException('Path must be absolute.');
+        }
 
-        $git = new Git($project_dir);
+        $fs->mkdir($path);
+
+        $git = new Git($path);
         $repo = new GitRepository($git, $output);
 
         $args = [
             $remote_url,
-            $project_dir,
+            $path,
         ];
 
         if ($background) {
@@ -114,22 +127,22 @@ class GitRepository
     /**
      * Open existing repository.
      *
-     * @param $project_dir
+     * @param $path
      * @param \Shell\Output\ProcessOutputInterface $output
      * @return GitRepository
      */
-    public static function open($project_dir, $output = null)
+    public static function open($path, $output = null)
     {
-        if (!is_dir($project_dir)) {
-            throw new InvalidArgumentException("[$project_dir] not found.");
+        if (!is_dir($path)) {
+            throw new InvalidArgumentException("[$path] not found.");
         }
 
-        $config = "$project_dir/.git/config";
+        $config = realpath($path).'/.git/config';
         if (!is_file($config)) {
-            throw new InvalidArgumentException("[$project_dir] is not a git repo.");
+            throw new InvalidArgumentException("[$path] is not a git repo.");
         }
 
-        return new GitRepository(new Git($project_dir), $output);
+        return new GitRepository(new Git($path), $output);
     }
 
     /**
@@ -138,7 +151,7 @@ class GitRepository
      * @param Git $git
      * @param \Shell\Output\ProcessOutputInterface $output
      */
-    public function __construct(Git $git, $output = null)
+    public function __construct(Git $git, $url, $output = null)
     {
         $this->git = $git;
 
@@ -148,6 +161,37 @@ class GitRepository
         $this->git->setOutputHandler($output);
 
         $this->processGitConfig();
+    }
+
+    /**
+     * Get the current project directory.
+     *
+     * @return string
+     */
+    public function getProjectDirectory()
+    {
+        return $this->git->getProjectDirectory();
+    }
+
+    /**
+     * List configured remotes.
+     *
+     * @param string $remote
+     * @return array|null
+     */
+    public function listRemotes($remote = 'origin')
+    {
+        if (is_null($remote)) {
+            return $this->config['remotes'];
+        }
+
+        foreach ($this->config['remotes'] as $r) {
+            if ($r['name'] === $remote) {
+                return $r;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -230,28 +274,63 @@ class GitRepository
      *
      * @param string $refspec
      * @param bool $createBranch
+     * @param string|null $branchName
      * @return void
      */
-    public function checkout($refspec, $createBranch = false)
+    public function checkout($refspec, $createBranch = false, $branchName = null)
     {
+        $args = [
+            $refspec,
+        ];
+
+        $options = [];
+        if ($createBranch) {
+            $options['-b'] = $branchName ?: $refspec;
+        }
+
+        $this->git('checkout')->withArgs($args)->withOptions($options);
     }
 
     /**
-     * Fetch upstream changes without applying.
+     * Fetch changes from the remote.
      *
+     * @param bool $tags
      * @return void
+     * @throws GitException
      */
-    public function fetch()
+    public function fetch($tags = false)
     {
+        $options = [];
+
+        if ($tags) {
+            $options['--tags'] = true;
+        }
+
+        $this->git->exec('fetch', [], $options);
     }
 
     /**
-     * Pull (and apply) upstream changes.
+     * List available tags.
+     *
+     * @return array
+     * @throws GitException
+     */
+    public function listTags()
+    {
+        $this->fetch(true);
+
+        return array_map('trim', $this->output->readStdOutLines());
+    }
+
+    /**
+     * Pull (and apply) changes from remote.
      *
      * @return void
+     * @throws GitException
      */
     public function pull()
     {
+        $this->git->exec('pull');
     }
 
     /**
@@ -299,23 +378,6 @@ class GitRepository
     public function pop()
     {
         $this->git->exec('stash-pop');
-    }
-
-    /**
-     * List existing remotes.
-     *
-     * @param bool $verbose
-     * @return void
-     * @throws GitException
-     */
-    public function listRemotes($verbose = false)
-    {
-        $options = [];
-        if ($verbose) {
-            $options['-v'] = null;
-        }
-
-        $this->git->exec('remote', [], $options);
     }
 
     /**

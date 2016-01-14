@@ -71,16 +71,6 @@ class Git
     protected $output;
 
     /**
-     * Set the configuration option globally (for executing user).
-     *
-     * @param $key
-     * @param $value
-     */
-    public static function configureGlobal($key, $value)
-    {
-    }
-
-    /**
      * Verify the git binary exists and return the absolute path.
      *
      * @return null|string
