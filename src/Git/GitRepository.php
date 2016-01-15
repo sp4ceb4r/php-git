@@ -265,7 +265,7 @@ class GitRepository
 
         $this->git->exec('config', [], [
             '--'.$reach,
-            "--$key" => $value,
+            "$key" => $value,
         ]);
     }
 
