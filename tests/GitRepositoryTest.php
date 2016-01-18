@@ -163,4 +163,38 @@ class GitRepositoryTest extends PHPUnit_Framework_TestCase
 
         $this->assertTrue(in_array('testtag', $tags));
     }
+
+    public function test_listCommits()
+    {
+        $repo = GitRepository::open(realpath(__DIR__.'/../'), new \Shell\Output\OutputHandler());
+        $commits = $repo->listCommits();
+
+        $this->assertGreaterThan(0, count($commits));
+    }
+
+    public function test_listCommitsWithLimit()
+    {
+        $repo = GitRepository::open(realpath(__DIR__.'/../'), new \Shell\Output\OutputHandler());
+        $commits = $repo->listCommits(0, 5);
+
+        $this->assertEquals(5, count($commits));
+    }
+
+    public function test_isCommit()
+    {
+        $sha = 'f80a9ff4857bb23cb734925d7496e89431ad5bcf';
+        $repo = GitRepository::open(realpath(__DIR__.'/../'), new \Shell\Output\OutputHandler());
+        $exists = $repo->verifyCommitExists($sha);
+
+        $this->assertTrue($exists);
+    }
+
+    public function test_isCommit_notfound()
+    {
+        $sha = 'f80a9ff4857bb23cb734925d7496e89431ad5bcq';
+        $repo = GitRepository::open(realpath(__DIR__.'/../'), new \Shell\Output\OutputHandler());
+        $exists = $repo->verifyCommitExists($sha);
+
+        $this->assertFalse($exists);
+    }
 }

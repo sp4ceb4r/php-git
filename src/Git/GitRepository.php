@@ -279,6 +279,56 @@ class GitRepository
     }
 
     /**
+     * List commits.
+     *
+     * @param int $offset
+     * @param int $limit
+     * @return array
+     * @throws GitException
+     */
+    public function listCommits($offset = 0, $limit = -1)
+    {
+        $options = [
+            '--pretty=oneline' => null,
+            '-n' => $limit,
+        ];
+
+        if ($limit < 0) {
+            unset($options['-n']);
+        }
+
+        $this->git->exec('log', [], $options);
+
+        return array_map(function($line) {
+            list($sha, $description) = explode(' ', $line, 2);
+            return [
+                'sha' => $sha,
+                'description' => $description,
+            ];
+        }, $this->output->readStdOutLines());
+    }
+
+    /**
+     * @param $sha
+     * @return bool
+     */
+    public function isCommmit($sha)
+    {
+        $options = [
+            '--quiet' => null,
+            '--verify' => "{$sha}^{commit}",
+        ];
+
+        try{
+            $this->git->exec('rev-parse', [], $options);
+        } catch (GitException $ex) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Fetch changes from the remote.
      *
      * @param bool $tags
