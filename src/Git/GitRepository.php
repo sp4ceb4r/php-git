@@ -151,7 +151,7 @@ class GitRepository
      * @param Git $git
      * @param \Shell\Output\ProcessOutputInterface $output
      */
-    public function __construct(Git $git, $url, $output = null)
+    public function __construct(Git $git, $output = null)
     {
         $this->git = $git;
 
@@ -174,24 +174,24 @@ class GitRepository
     }
 
     /**
-     * List configured remotes.
+     * Set configuration option.
      *
-     * @param string $remote
-     * @return array|null
+     * @param $key
+     * @param $value
+     * @param string $reach
+     * @return void
      */
-    public function listRemotes($remote = 'origin')
+    public function configure($key, $value, $reach = 'local')
     {
-        if (is_null($remote)) {
-            return $this->config['remotes'];
+        $reach = strtolower($reach);
+        if (!in_array($reach, [Git::LOCAL_CONFIG, Git::GLOBAL_CONFIG, Git::SYSTEM_CONFIG])) {
+            throw new \LogicException("Invalid reach [$reach].");
         }
 
-        foreach ($this->config['remotes'] as $r) {
-            if ($r['name'] === $remote) {
-                return $r;
-            }
-        }
-
-        return null;
+        $this->git->exec('config', [], [
+            '--'.$reach,
+            "$key" => $value,
+        ]);
     }
 
     /**
@@ -221,7 +221,11 @@ class GitRepository
     {
         $this->git->exec('rev-parse', [], ['--abbrev-ref' => 'HEAD']);
 
-        return end($this->output->readStdoutLines());
+        $tmp = $this->output->readStdoutLines();
+        $branch = end($tmp);
+        unset($tmp);
+
+        return $branch;
     }
 
     /**
@@ -240,33 +244,12 @@ class GitRepository
             $key = '-d';
         }
 
-        $process = $this->git->exec('branch', [], [$key => $branch]);
+        $this->git->exec('branch', [], [$key => $branch]);
 
         if ($remote) {
             unset($process);
-            $process = $this->git->exec('push', ['origin', ":$branch"]);
+            $this->git->exec('push', ['origin', ":$branch"]);
         }
-    }
-
-    /**
-     * Set configuration option.
-     *
-     * @param $key
-     * @param $value
-     * @param string $reach
-     * @return void
-     */
-    public function configure($key, $value, $reach = 'local')
-    {
-        $reach = strtolower($reach);
-        if (!in_array($reach, [Git::LOCAL_CONFIG, Git::GLOBAL_CONFIG, Git::SYSTEM_CONFIG])) {
-            throw new \LogicException("Invalid reach [$reach].");
-        }
-
-        $this->git->exec('config', [], [
-            '--'.$reach,
-            "$key" => $value,
-        ]);
     }
 
     /**
@@ -285,10 +268,14 @@ class GitRepository
 
         $options = [];
         if ($createBranch) {
+            if ($refspec === $branchName) {
+                $args = [];
+            }
+
             $options['-b'] = $branchName ?: $refspec;
         }
 
-        $this->git('checkout')->withArgs($args)->withOptions($options);
+        $this->git->exec('checkout', $args, $options);
     }
 
     /**
@@ -318,6 +305,8 @@ class GitRepository
     public function listTags()
     {
         $this->fetch(true);
+
+        $this->git->exec('tag');
 
         return array_map('trim', $this->output->readStdOutLines());
     }
@@ -391,6 +380,29 @@ class GitRepository
     public function addRemote($name, $url)
     {
         $this->git->exec('remote-add', [$name, $url]);
+
+        $this->config['remotes'][$name] = [
+            'name' => $name,
+            'url' => $url,
+        ];
+    }
+
+    /**
+     * List configured remotes.
+     *
+     * @param string $remote
+     * @return array|null
+     */
+    public function listRemotes($remote = null)
+    {
+        if (is_null($remote)) {
+            return array_values($this->config['remotes']);
+        }
+
+        if (isset($this->config['remotes'][$remote])) {
+            return $this->config['remotes'][$remote];
+        }
+        return null;
     }
 
     /**
@@ -401,7 +413,13 @@ class GitRepository
      */
     public function removeRemote($name)
     {
-        $this->git->exec('remote-remove', [$name]);
+        try {
+            $this->git->exec('remote-remove', [$name]);
+            unset($this->config['remotes'][$name]);
+        } catch (\Exception $ex) {
+            // Suppress the exception.
+            // Remote didn't exist?
+        }
     }
 
     /**
@@ -415,6 +433,9 @@ class GitRepository
     public function renameRemote($old, $new)
     {
         $this->git->exec('remote-rename', [$old, $new]);
+
+        $this->config['remotes'][$new] = $this->config['remotes'][$old];
+        unset($this->config['remotes'][$old]);
     }
 
     /**
@@ -454,7 +475,11 @@ class GitRepository
             foreach (parse_ini_file($file, true) as $section => $values) {
                 if (substr($section, 0, 6) === 'remote') {
                     $remote = substr($section, 7);
-                    $this->config['remotes'][] = [
+                    if (!isset($this->config['remotes'])) {
+                        $this->config['remotes'] = [];
+                    }
+
+                    $this->config['remotes'][$remote] = [
                         'name' => $remote,
                         'url' => $values['url'],
                     ];

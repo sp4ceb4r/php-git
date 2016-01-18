@@ -157,7 +157,7 @@ class Git
             $code = $process->getExitCode() ?: $process->getSignal();
             $msg = $this->formatError($process->getOutputHandler()->readStderrLines());
 
-            throw new GitException("[$command] failed. $msg", $code ?: 0, $ex);
+            throw new GitException(trim("[$command] failed. $msg"), $code ?: 0, $ex);
         }
     }
 
@@ -173,7 +173,7 @@ class Git
             $code = $process->getExitCode() ?: $process->getSignal();
             $msg = $this->formatError($process->getOutputHandler()->readStderrLines());
 
-            throw new GitException("[$command] failed. $msg", $code ?: 0, $ex);
+            throw new GitException(trim("[$command] failed. $msg"), $code ?: 0, $ex);
         }
     }
 
